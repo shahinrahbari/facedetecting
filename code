@@ -1,0 +1,359 @@
+#include<iostream.h>
+#include<stdio.h>
+#include<conio.h>
+// f baraye baz kardane file bmpie dade shode va hamchenin neveshtan 1file bmpie dige ke chehreha ra moshakhas karde
+FILE *f;  
+//arayeye 54taiie header baraye khoondane 54byte avale file bmp
+unsigned char header[54];   
+ //stringe picture baraye gereftane adresse ax az karbar va bmpchecker baraye check kardane 2charactere avale file
+char picture[150],bmpchecker[2]; 
+//tarife globale h,s,l        bgr==>lsh
+unsigned char l[3000][3000],s[3000][3000],h[3000][3000]; 
+//tarife rgb
+unsigned char b[3000][3000],g[3000][3000],r[3000][3000];
+//tarife rg
+float rrg[3000][3000],grg[3000][3000];
+//bool skin
+bool skin[3000][3000];
+//mark kardane ghesmathaii ke ghablan labelgozarish shodan 
+bool mark[3000][3000];
+//baraye taiine moalefehaye hambandi va mosavi gharar dadanash ba counter
+int shomaregozari[3000][3000];
+//masahate skin baraye taiin kardane inke beine 450 va 4500 bashan
+int masahat[3000]={0};
+//shomareshe tedade noghate sefide tasvir
+int counter=1;
+//mokhtasate bala,paiin,chap va raste mostatilhamoon
+int toolebala[3000],toolepaiin[3000],arzechap[300],arzerast[3000],tool[3000],arz[3000];
+bool nesbat[3000];
+// tarife 1 moteghayere boolian be in tartib ke dar nahayat faghat moalefehaii true hastand ke soorate fard bashand
+bool chehre[3000][3000];
+//functione zir adresse file ra migirad,check mikonad adress dorost ast ya na,bmp boodanesh ro check mikonad
+void fileopening()
+{
+    for(int i=0;;i++)
+    {
+        if(i==0)
+        {
+           printf("addresse file bmp ra vared konid.\n be soorate nemoone:\n");
+         printf("C:\\user\\shahin\\desktop\\picture.bmp\n");
+	       gets(picture);
+	       f=fopen(picture,"rb");
+        }
+            while(f==NULL)
+	       {
+             printf("address ra eshtebah vared kardid\n");
+             printf("addresse file bmp ra vared konid.\n be soorate nemoone:\n");
+	         printf("C:\\user\\shahin\\desktop\\picture.bmp\n");
+	         gets(picture);
+	         f=fopen(picture,"rb");
+           }
+        fread(header,sizeof(unsigned char),54,f);
+        bmpchecker[0]=*(char *)&header[0];
+	    bmpchecker[1]=*(char *)&header[1];
+	    //66 & 77
+	    if(!((bmpchecker[0]=='B')&&(bmpchecker[1]=='M')))
+	    {
+	       printf("file dade shode bmp nemibashad,lotfan adresse 1file ba pasvande bmp vared konid\n");
+	       gets(picture);
+	       f=fopen(picture,"rb");
+        }
+        	while(*(int*)&header[30]!=0)
+        	{
+				printf("compression methode file dade shode 0 nemibashad 2bare vared konid\n");
+				gets(picture);
+				f=fopen(picture,"rb");
+			}
+			
+        if((f!=NULL)&&(bmpchecker[0]==66)&&(bmpchecker[1]==77))
+            break;
+       
+    }
+}
+void RGBreader(int height,int width,int padding)
+{
+    for(int i=0;i<height;i++)
+		{
+			for(int j=0;j<width;j++)
+			{
+				fread(&b[i][j],sizeof(unsigned char),1,f);
+				fread(&g[i][j],sizeof(unsigned char),1,f);
+				fread(&r[i][j],sizeof(unsigned char),1,f);
+			}
+			for(int j=0;j<padding;j++)
+			{
+					unsigned char temp;
+					fread(&temp,sizeof(unsigned char),1,f);
+			}
+		}		
+}
+//maxe 3 adad
+	float max(float a,float b,float c)
+	{
+		float max1;
+		max1=a;
+		if(b>max1)
+		  max1=b;
+		if(c>max1)
+		  max1=c;
+		return max1;
+	}
+//mine 3adad
+	float min(float a,float b,float c)
+	{
+		float min1;
+		min1=a;
+		if(b<min1)
+		  min1=b;
+		if(c<min1)
+		  min1=c;
+		return min1;
+	}
+//tabdile rgb be hsl
+void RGB2HSL(int height,int width)
+{
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width;j++)
+			{
+				float R,G,B;
+				R=((float)r[i][j])/255	;	
+				G=((float)g[i][j])/255	;
+				B=((float)b[i][j])/255	;
+				float max1=max(R,G,B);
+				float min1=min(R,G,B);
+		        float H,S,L;
+				L=(max1+min1)/2;
+				if(max1==min1)
+				{
+				    s[i][j]=0;
+					h[i][j]=0;
+					l[i][j]=L*240;
+					continue;
+				}
+				else
+					if(L<0.5)
+						S=(max1-min1)/(max1+min1);
+					else
+						S=(max1-min1)/(2.0-max1-min1);
+					if(R==max1)
+						H=(G-B)/(max1-min1);
+					else if(G==max1)
+						H=2+(B-R)/(max1-min1);
+					else if(B==max1)
+						H=4+(R-G)/(max1-min1);	
+					if(H<0)
+						H=H+6;
+					h[i][j]=H*40;
+					l[i][j]=L*240;
+					s[i][j]=S*240;			
+			}
+}
+//tabdile rgb be rg
+void RGB2RG(int height,int width)
+{
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width;j++)
+			{
+				rrg[i][j]=(float)r[i][j]/(float)(r[i][j]+g[i][j]+b[i][j]);
+				grg[i][j]=(float)g[i][j]/(float)(r[i][j]+g[i][j]+b[i][j]);
+			}
+}
+//functione zir pixelhaii ro ke He anha dar bazeye matloob nist chehre boodanesh ro false dar nazar migire
+void skiin(int height,int width)
+{
+	for(int i=0;i<height;i++)
+		for(int j=0;j<width;j++)
+			skin[i][j]=true;
+	for(int i=0;i<height;i++)
+		for(int j=0;j<width;j++)		
+		{
+			if((h[i][j]>=18)&&(h[i][j]<239))
+			{
+			 skin[i][j]=false;
+			 continue;
+			}
+			float f1=(-1.376)*(float)rrg[i][j]*(float)rrg[i][j]+(1.0743)*(float)rrg[i][j]+0.2;	
+			float f2=(-0.776)*(float)rrg[i][j]*(float)rrg[i][j]+(0.5601)*(float)rrg[i][j]+0.18;
+			float w=((float)rrg[i][j]-0.33)*((float)rrg[i][j]-0.33)+((float)grg[i][j]-0.33)*((float)grg[i][j]-0.33);
+			if(!((grg[i][j]<f1)&&(grg[i][j]>f2)&&(w>0.001)))
+			 skin[i][j]=false;
+		}
+}
+void face(int height,int width)
+{
+    for(int i=0;i<height;i++)
+	       for(int j=0;j<width;j++)
+                   chehre[i][j]=skin[i][j];
+}
+//dfs==>label gozarie chehreha
+void dfs(int height,int width,int counter,int i,int j)
+{
+	masahat[counter]++;
+	mark[i][j]=true;
+	shomaregozari[i][j]=counter;
+	for(int m=-1;m<=1;m++)
+		for(int n=-1;n<=1;n++)
+		{
+		  if((m==0)&&(n==0))
+		    continue;
+		  if((i+m)<0 || (i+m)>=height)
+		  	continue;
+		  if((j+n)<0 ||(j+n)>=width)
+		  	continue;
+		  if((!mark[i+m][j+n])&&(skin[i+m][j+n]))
+		  dfs(height,width,counter,i+m,j+n);
+		}
+	
+}
+void marker(int height,int width)
+{
+	for(int i=0;i<height;i++)
+		for(int j=0;j<width;j++)
+			mark[i][j]=false;
+	for(int i=0;i<height;i++)
+		for(int j=0;j<width;j++)
+			 {
+			   if((!mark[i][j])&&(skin[i][j]))
+			   {
+			 	 dfs(height,width,counter,i,j);
+				 counter++ ;	
+			   }
+			}
+}
+//functione zir barresi mikonad ke nesbate masahate noghate sefid be mostatile keshide shode beine 0.4 va 0.9 hast ya na!!
+void percentage(int height,int width)
+{
+	for(int i=0;i<height;i++)
+		for(int j=0;j<width;j++)
+			{
+		       toolebala[shomaregozari[i][j]]=height;
+			   toolepaiin[shomaregozari[i][j]]=0;
+			   arzechap[shomaregozari[i][j]]=width;
+			   arzerast[shomaregozari[i][j]]=0;
+			}
+	for(int i=0;i<height;i++)
+		for(int j=0;j<width;j++)
+			if(shomaregozari[i][j] > 0)
+			{
+				if(toolebala[shomaregozari[i][j]] > i)
+					toolebala[shomaregozari[i][j]]=i;
+				if(toolepaiin[shomaregozari[i][j]] < i)
+					toolepaiin[shomaregozari[i][j]]=i;
+				if(arzerast[shomaregozari[i][j]]<j)
+					arzerast[shomaregozari[i][j]]=j;
+				if(arzechap[shomaregozari[i][j]]>j)
+				    arzechap[shomaregozari[i][j]]=j;
+			}
+			for(int i=0;i<height;i++)
+				for(int j=0;j<width;j++)
+					if(shomaregozari[i][j] > 0)
+					{
+						tool[shomaregozari[i][j]]=toolepaiin[shomaregozari[i][j]]-toolebala[shomaregozari[i][j]];
+						arz[shomaregozari[i][j]]=arzerast[shomaregozari[i][j]]-arzechap[shomaregozari[i][j]];
+					}
+			for(int i=0;i<height;i++)
+				for(int j=0;j<width;j++)
+					{
+					   int masahatekadr=tool[shomaregozari[i][j]]*arz[shomaregozari[i][j]];
+                       if(!((masahatekadr >2500)&& (masahatekadr<20000)))
+                             chehre[i][j]=false;
+					}
+			for(int i=0;i<height;i++)
+				for(int j=0;j<width;j++)
+				    if(shomaregozari[i][j] > 0)
+					{
+					   float rate = (float)masahat[shomaregozari[i][j]]/(float)(tool[shomaregozari[i][j]]*arz[shomaregozari[i][j]]);
+					   if(!((rate>0.4)&&(rate<0.9)))
+						 chehre[i][j]=false;
+                    }	
+}
+//functione zir barresi mikonad ke nesbate tool be arze ghesmathaii ke ta be hal soorat tashkhis dade shodeand dar hodoode adade talaii hast ya na
+void goldenratio(int height,int width)
+{
+    float nesbat;
+    for(int i=0;i<height;i++)
+        for(int j=0;j<width;j++)
+        {
+            nesbat=(float)tool[shomaregozari[i][j]]/(float)arz[shomaregozari[i][j]];
+            if(!((nesbat>1)&&(nesbat<2.6)))
+                chehre[i][j]=false;
+        }   						   		 
+}
+//dore ghesmathaii ke chehre tashkhis dade shodan kadr mikeshe
+void drawBorder(int height, int width)
+{
+	for(int i = 0; i <height; i++)
+	{
+		for(int j = 0; j < width; j++)
+		{
+			if(chehre[i][j])
+			{
+				for(int k = toolebala[shomaregozari[i][j]]; k <= toolepaiin[shomaregozari[i][j]]; k++)
+				{
+					r[k][arzerast[shomaregozari[i][j]]] = 255;
+					g[k][arzerast[shomaregozari[i][j]]] = 0;
+					b[k][arzerast[shomaregozari[i][j]]] = 0;
+					r[k][arzechap[shomaregozari[i][j]]] = 255;
+					g[k][arzechap[shomaregozari[i][j]]] = 0;
+					b[k][arzechap[shomaregozari[i][j]]] = 0;
+				}
+				for(int k = arzechap[shomaregozari[i][j]]; k <= arzerast[shomaregozari[i][j]]; k++)
+				{
+					r[toolebala[shomaregozari[i][j]]][k] = 255;
+					g[toolebala[shomaregozari[i][j]]][k] = 0;
+					b[toolebala[shomaregozari[i][j]]][k] = 0;
+					r[toolepaiin[shomaregozari[i][j]]][k] = 255;
+					g[toolepaiin[shomaregozari[i][j]]][k] = 0;
+					b[toolepaiin[shomaregozari[i][j]]][k] = 0;
+				}
+			}
+		}
+	}
+}
+//functione zir axe dade shodeye karbar ro 2bare dar 1file bmpie jadid hamrah ba kadrhaye dore soorat chap mikonad
+void writeBMP(int height,int width,int padding)
+{
+    	for(int i=0;i<height;i++)
+	    {
+			for(int j=0;j<width;j++)
+			{
+				unsigned char a = 0;
+				if(chehre[i][j])
+				{
+					a=255;
+				}
+				fwrite(&b[i][j],sizeof(unsigned char),1,f);
+				fwrite(&g[i][j],sizeof(unsigned char),1,f);
+				fwrite(&r[i][j],sizeof(unsigned char),1,f);
+	        }
+			for(int j=0;j<padding;j++)
+			{
+			    unsigned char temp='0';
+				fwrite(&temp,sizeof(unsigned char),1,f);
+		    } 
+    	}
+}
+
+int main()
+{
+    
+	fileopening();
+	int width=*(int *)&header[18];
+	int height=*(int *)&header[22];	
+	int padding=(width%4==0 ? 0: 4 - (3 * width % 4));
+	RGBreader(height,width,padding)	;	
+	fclose(f);
+	RGB2HSL(height,width);
+	RGB2RG(height,width);
+	skiin(height,width);
+	face(height,width);
+	marker(height,width); 
+    percentage(height,width);
+	goldenratio(height,width);
+	drawBorder(height, width);
+	f=fopen("face detected pic.bmp","wb+");
+	fwrite(header,sizeof(unsigned char),54,f);
+	writeBMP(height,width,padding);
+	fclose(f);
+	return 0;
+}
